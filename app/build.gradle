@@ -41,7 +41,8 @@ dependencies {
     implementation "androidx.camera:camera-lifecycle:${camerax_version}"
     implementation "androidx.camera:camera-view:${camerax_version}"
 
-    // Shizuku
-    implementation 'rikka.shizuku:api:13.1.5'
-    implementation 'rikka.shizuku:provider:13.1.5'
+    // Shizuku (Grupo y versión actualizados)
+    def shizuku_version = "13.1.0"
+    implementation "dev.rikka.shizuku:api:${shizuku_version}"
+    implementation "dev.rikka.shizuku:provider:${shizuku_version}"
 }
