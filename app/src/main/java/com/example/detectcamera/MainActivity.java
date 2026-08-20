@@ -1,31 +1,76 @@
 package com.example.detectcamera;
 
 import android.Manifest;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import rikka.shizuku.Shizuku;
+
 public class MainActivity extends AppCompatActivity {
 
     private static final int PERMISSION_REQUEST_CODE = 101;
+    private static final int SHIZUKU_CODE = 1002;
+    private TextView txtIpStatus;
+
+    private final Shizuku.OnRequestPermissionResultListener shizukuListener = this::onShizukuResult;
+
+    private final BroadcastReceiver receiverIp = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent != null && "com.example.detectcamera.UPDATE_IP".equals(intent.getAction())) {
+                String ip = intent.getStringExtra("IP_ADDRESS");
+                if (txtIpStatus != null && ip != null) {
+                    txtIpStatus.setText("IP: http://" + ip);
+                }
+            }
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        txtIpStatus = findViewById(R.id.txtIpStatus);
+
+        Shizuku.addRequestPermissionResultListener(shizukuListener);
+
         verificarYSolicitarPermisos();
+        verificarYPedirShizuku();
+    }
+
+    private void verificarYPedirShizuku() {
+        try {
+            if (Shizuku.pingBinder()) {
+                if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
+                    Shizuku.requestPermission(SHIZUKU_CODE);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void onShizukuResult(int requestCode, int grantResult) {
+        if (requestCode == SHIZUKU_CODE) {
+            if (grantResult == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Shizuku vinculado con éxito", Toast.LENGTH_SHORT).show();
+            }
+        }
     }
 
     private void verificarYSolicitarPermisos() {
         String[] permisos;
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permisos = new String[]{
                     Manifest.permission.CAMERA,
@@ -67,8 +112,6 @@ public class MainActivity extends AppCompatActivity {
             }
             if (todosConcedidos) {
                 iniciarServicioCamara();
-            } else {
-                Toast.makeText(this, "Se requieren permisos para iniciar el servicio", Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -80,5 +123,29 @@ public class MainActivity extends AppCompatActivity {
         } else {
             startService(intent);
         }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(receiverIp, new IntentFilter("com.example.detectcamera.UPDATE_IP"), Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(receiverIp, new IntentFilter("com.example.detectcamera.UPDATE_IP"));
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        try {
+            unregisterReceiver(receiverIp);
+        } catch (Exception ignored) {}
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        Shizuku.removeRequestPermissionResultListener(shizukuListener);
     }
 }
