@@ -26,7 +26,6 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.PowerManager;
-import android.text.format.Formatter;
 import android.util.Log;
 import android.view.Surface;
 import android.widget.Toast;
@@ -35,8 +34,11 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.nio.ByteBuffer;
 import java.util.Collections;
+import java.util.Enumeration;
 
 public class CameraService extends Service {
 
@@ -101,9 +103,10 @@ public class CameraService extends Service {
     }
 
     private void actualizarNotificacionYServicio(boolean incluirMediaProjection) {
+        String ip = obtenerIpReal();
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("Servidor Transmitiendo")
-                .setContentText("Puerto: " + PUERTO_WEB)
+                .setContentText("IP: " + ip + ":" + PUERTO_WEB)
                 .setSmallIcon(android.R.drawable.ic_menu_camera)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOngoing(true)
@@ -120,7 +123,6 @@ public class CameraService extends Service {
                 types |= ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;
             }
 
-            // Solo agrega MEDIA_PROJECTION cuando se recibe la confirmación del usuario
             if (incluirMediaProjection && Build.VERSION.SDK_INT >= 34) {
                 types |= ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION;
             }
@@ -143,8 +145,14 @@ public class CameraService extends Service {
                 webServer.setCredenciales(user, pass);
                 webServer.start(10000, false);
 
-                String ip = obtenerIpDispositivo();
+                String ip = obtenerIpReal();
                 mostrarToastEnUI("Servidor Activo: http://" + ip + ":" + PUERTO_WEB);
+
+                // Notifica a MainActivity de la nueva IP
+                Intent intentIp = new Intent("com.example.detectcamera.UPDATE_IP");
+                intentIp.putExtra("IP_ADDRESS", ip + ":" + PUERTO_WEB);
+                sendBroadcast(intentIp);
+
             } catch (IOException e) {
                 Log.e("CameraService", "Error WebServer: " + e.getMessage(), e);
             }
@@ -295,10 +303,21 @@ public class CameraService extends Service {
         if (estabaActiva) iniciarCamara();
     }
 
-    private String obtenerIpDispositivo() {
-        WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-        if (wm != null) return Formatter.formatIpAddress(wm.getConnectionInfo().getIpAddress());
-        return "localhost";
+    public String obtenerIpReal() {
+        try {
+            for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
+                NetworkInterface intf = en.nextElement();
+                for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
+                    InetAddress inetAddress = enumIpAddr.nextElement();
+                    if (!inetAddress.isLoopbackAddress() && inetAddress.getAddress().length == 4) {
+                        return inetAddress.getHostAddress();
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            Log.e("CameraService", "Error obteniendo IP: " + ex.getMessage());
+        }
+        return "127.0.0.1";
     }
 
     private void mostrarToastEnUI(String mensaje) {
