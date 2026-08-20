@@ -94,7 +94,9 @@ public class CameraService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             int types = ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA 
                       | ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.U) {
+            
+            // Reemplazado Build.VERSION_CODES.U por 34 para evitar errores de SDK
+            if (Build.VERSION.SDK_INT >= 34) {
                 types |= ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION;
             }
             startForeground(NOTIFICATION_ID, notification, types);
