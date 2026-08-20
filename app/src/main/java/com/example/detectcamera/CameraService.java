@@ -148,7 +148,6 @@ public class CameraService extends Service {
                 String ip = obtenerIpReal();
                 mostrarToastEnUI("Servidor Activo: http://" + ip + ":" + PUERTO_WEB);
 
-                // Notifica a MainActivity de la nueva IP
                 Intent intentIp = new Intent("com.example.detectcamera.UPDATE_IP");
                 intentIp.putExtra("IP_ADDRESS", ip + ":" + PUERTO_WEB);
                 sendBroadcast(intentIp);
@@ -161,7 +160,20 @@ public class CameraService extends Service {
 
     public synchronized void activarCapturaPantalla() {
         if (screenCaptureController != null && screenCaptureController.isRunning()) return;
-        
+
+        MediaProjectionHelper.ModoProyeccion modo = MediaProjectionHelper.obtenerModoDisponible(this);
+
+        if (modo == MediaProjectionHelper.ModoProyeccion.DEVICE_OWNER) {
+            iniciarProyeccionDirecta();
+        } else if (modo == MediaProjectionHelper.ModoProyeccion.SHIZUKU) {
+            MediaProjectionHelper.otorgarConsentimientoShizuku(getPackageName());
+            iniciarProyeccionDirecta();
+        } else {
+            iniciarProyeccionDirecta();
+        }
+    }
+
+    private void iniciarProyeccionDirecta() {
         Intent intent = new Intent(this, ProjectionActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);
