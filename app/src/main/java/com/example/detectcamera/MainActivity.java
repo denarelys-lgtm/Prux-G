@@ -42,7 +42,10 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        txtIpStatus = findViewById(R.id.txtIpStatus);
+        int resId = getResources().getIdentifier("txtIpStatus", "id", getPackageName());
+        if (resId != 0) {
+            txtIpStatus = findViewById(resId);
+        }
 
         Shizuku.addRequestPermissionResultListener(shizukuListener);
 
