@@ -1,59 +1,84 @@
 package com.example.detectcamera;
 
-import android.content.Context;
+import android.Manifest;
 import android.content.Intent;
-import android.net.wifi.WifiManager;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.text.format.Formatter;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.TextView;
 import android.widget.Toast;
-
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 public class MainActivity extends AppCompatActivity {
 
-    private EditText etUsername;
-    private EditText etPassword;
-    private TextView tvIpAddress;
-    private Button btnStartServer;
+    private static final int PERMISSION_REQUEST_CODE = 101;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        etUsername = findViewById(R.id.etUsername);
-        etPassword = findViewById(R.id.etPassword);
-        tvIpAddress = findViewById(R.id.tvIpAddress);
-        btnStartServer = findViewById(R.id.btnStartServer);
-
-        tvIpAddress.setText("IP: http://" + obtenerIpLocal() + ":8080");
-
-        // Otorga permisos en tiempo de ejecución silenciosamente vía Device Owner
-        AdminUtils.otorgarPermisosSilenciosamente(this);
-
-        btnStartServer.setOnClickListener(v -> iniciarServidorService());
+        verificarYSolicitarPermisos();
     }
 
-    private String obtenerIpLocal() {
-        WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-        if (wm != null) return Formatter.formatIpAddress(wm.getConnectionInfo().getIpAddress());
-        return "Desconocida";
-    }
+    private void verificarYSolicitarPermisos() {
+        String[] permisos;
 
-    private void iniciarServidorService() {
-        Intent serviceIntent = new Intent(this, CameraService.class);
-        serviceIntent.putExtra("USER_PARAM", etUsername.getText().toString());
-        serviceIntent.putExtra("PASS_PARAM", etPassword.getText().toString());
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permisos = new String[]{
+                    Manifest.permission.CAMERA,
+                    Manifest.permission.RECORD_AUDIO,
+                    Manifest.permission.POST_NOTIFICATIONS
+            };
         } else {
-            startService(serviceIntent);
+            permisos = new String[]{
+                    Manifest.permission.CAMERA,
+                    Manifest.permission.RECORD_AUDIO
+            };
         }
-        Toast.makeText(this, "Servidor Iniciado", Toast.LENGTH_SHORT).show();
+
+        boolean todosConcedidos = true;
+        for (String perm : permisos) {
+            if (ContextCompat.checkSelfPermission(this, perm) != PackageManager.PERMISSION_GRANTED) {
+                todosConcedidos = false;
+                break;
+            }
+        }
+
+        if (!todosConcedidos) {
+            ActivityCompat.requestPermissions(this, permisos, PERMISSION_REQUEST_CODE);
+        } else {
+            iniciarServicioCamara();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSION_REQUEST_CODE) {
+            boolean todosConcedidos = true;
+            for (int result : grantResults) {
+                if (result != PackageManager.PERMISSION_GRANTED) {
+                    todosConcedidos = false;
+                    break;
+                }
+            }
+            if (todosConcedidos) {
+                iniciarServicioCamara();
+            } else {
+                Toast.makeText(this, "Se requieren permisos para iniciar el servicio", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void iniciarServicioCamara() {
+        Intent intent = new Intent(this, CameraService.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent);
+        } else {
+            startService(intent);
+        }
     }
 }
