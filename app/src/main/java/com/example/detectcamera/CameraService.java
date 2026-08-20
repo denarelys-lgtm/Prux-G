@@ -83,6 +83,24 @@ public class CameraService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        boolean esProyeccion = intent != null && "ACTION_START_PROJECTION".equals(intent.getAction());
+
+        actualizarNotificacionYServicio(esProyeccion);
+
+        if (esProyeccion) {
+            int resultCode = intent.getIntExtra("EXTRA_RESULT_CODE", Activity.RESULT_CANCELED);
+            Intent data = intent.getParcelableExtra("EXTRA_DATA");
+            iniciarProyeccionPantalla(resultCode, data);
+        } else {
+            String user = intent != null ? intent.getStringExtra("USER_PARAM") : "";
+            String pass = intent != null ? intent.getStringExtra("PASS_PARAM") : "";
+            iniciarServidor(user, pass);
+        }
+
+        return START_STICKY;
+    }
+
+    private void actualizarNotificacionYServicio(boolean incluirMediaProjection) {
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("Servidor Transmitiendo")
                 .setContentText("Puerto: " + PUERTO_WEB)
@@ -102,7 +120,8 @@ public class CameraService extends Service {
                 types |= ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;
             }
 
-            if (Build.VERSION.SDK_INT >= 34) {
+            // Solo agrega MEDIA_PROJECTION cuando se recibe la confirmación del usuario
+            if (incluirMediaProjection && Build.VERSION.SDK_INT >= 34) {
                 types |= ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION;
             }
 
@@ -114,18 +133,6 @@ public class CameraService extends Service {
         } else {
             startForeground(NOTIFICATION_ID, notification);
         }
-
-        if (intent != null && "ACTION_START_PROJECTION".equals(intent.getAction())) {
-            int resultCode = intent.getIntExtra("EXTRA_RESULT_CODE", Activity.RESULT_CANCELED);
-            Intent data = intent.getParcelableExtra("EXTRA_DATA");
-            iniciarProyeccionPantalla(resultCode, data);
-        } else {
-            String user = intent != null ? intent.getStringExtra("USER_PARAM") : "";
-            String pass = intent != null ? intent.getStringExtra("PASS_PARAM") : "";
-            iniciarServidor(user, pass);
-        }
-
-        return START_STICKY;
     }
 
     private synchronized void iniciarServidor(String user, String pass) {
@@ -175,6 +182,7 @@ public class CameraService extends Service {
             screenCaptureController.release();
             screenCaptureController = null;
         }
+        actualizarNotificacionYServicio(false);
     }
 
     public synchronized void iniciarCamara() {
