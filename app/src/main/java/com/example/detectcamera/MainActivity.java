@@ -24,6 +24,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView txtIpStatus;
 
     private final Shizuku.OnRequestPermissionResultListener shizukuListener = this::onShizukuResult;
+    private final Shizuku.OnBinderReceivedListener binderListener = this::verificarYPedirShizuku;
 
     private final BroadcastReceiver receiverIp = new BroadcastReceiver() {
         @Override
@@ -47,7 +48,9 @@ public class MainActivity extends AppCompatActivity {
             txtIpStatus = findViewById(resId);
         }
 
+        // Registrar escuchadores de Shizuku
         Shizuku.addRequestPermissionResultListener(shizukuListener);
+        Shizuku.addBinderReceivedListener(binderListener);
 
         verificarYSolicitarPermisos();
         verificarYPedirShizuku();
@@ -56,11 +59,17 @@ public class MainActivity extends AppCompatActivity {
     private void verificarYPedirShizuku() {
         try {
             if (Shizuku.pingBinder()) {
-                if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
+                if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(this, "Shizuku ya autorizado", Toast.LENGTH_SHORT).show();
+                } else {
+                    // Solicita el permiso directamente lanzando la ventana emergente
                     Shizuku.requestPermission(SHIZUKU_CODE);
                 }
+            } else {
+                Toast.makeText(this, "Shizuku no está en ejecución", Toast.LENGTH_SHORT).show();
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -68,6 +77,8 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == SHIZUKU_CODE) {
             if (grantResult == PackageManager.PERMISSION_GRANTED) {
                 Toast.makeText(this, "Shizuku vinculado con éxito", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "Permiso de Shizuku denegado", Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -136,6 +147,8 @@ public class MainActivity extends AppCompatActivity {
         } else {
             registerReceiver(receiverIp, new IntentFilter("com.example.detectcamera.UPDATE_IP"));
         }
+        // Vuelve a comprobar el estado de Shizuku al volver a primer plano
+        verificarYPedirShizuku();
     }
 
     @Override
@@ -150,5 +163,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         Shizuku.removeRequestPermissionResultListener(shizukuListener);
+        Shizuku.removeBinderReceivedListener(binderListener);
     }
 }
