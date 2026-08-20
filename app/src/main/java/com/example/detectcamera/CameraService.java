@@ -92,14 +92,25 @@ public class CameraService extends Service {
                 .build();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            int types = ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA 
-                      | ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;
-            
-            // Reemplazado Build.VERSION_CODES.U por 34 para evitar errores de SDK
+            int types = 0;
+
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                types |= ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA;
+            }
+
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                types |= ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;
+            }
+
             if (Build.VERSION.SDK_INT >= 34) {
                 types |= ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION;
             }
-            startForeground(NOTIFICATION_ID, notification, types);
+
+            if (types != 0) {
+                startForeground(NOTIFICATION_ID, notification, types);
+            } else {
+                startForeground(NOTIFICATION_ID, notification);
+            }
         } else {
             startForeground(NOTIFICATION_ID, notification);
         }
